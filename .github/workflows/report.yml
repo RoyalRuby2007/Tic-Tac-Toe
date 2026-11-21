@@ -14,6 +14,11 @@ jobs:
           root_file: main.tex
           working_directory: report
       - uses: actions/upload-artifact@v4
+        if: always()                      # chạy cả khi bước biên dịch thất bại
         with:
-          name: report-pdf
-          path: report/main.pdf
+          name: report-output
+          path: |
+            report/main.pdf
+            report/main.log
+            report/main.blg
+          if-no-files-found: ignore

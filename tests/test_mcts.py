@@ -3,7 +3,7 @@
 Chạy:  uv run pytest -q tests/test_mcts.py
 """
 from uctlab.agents.mcts import MCTSAgent
-from uctlab.games.base import DRAW
+from uctlab.games.base import DRAW, ONGOING
 from uctlab.games.mnk import MNKState
 
 
@@ -70,6 +70,6 @@ def test_self_play_3x3_is_draw():
         s = MNKState(3, 3, 3)
         agents = {1: MCTSAgent(iterations=3000, seed=10 + g),
                   2: MCTSAgent(iterations=3000, seed=20 + g)}
-        while not s.is_over():
+        while s.result() == ONGOING:
             s.play(agents[s.player].select_move(s))
         assert s.result() == DRAW

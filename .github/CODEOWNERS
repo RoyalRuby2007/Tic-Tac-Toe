@@ -1,0 +1,34 @@
+# Ai được tự động mời review khi PR sửa file nào.
+
+# Mặc định: cả nhóm
+*                               @RoyalRuby2007 @Sun-Coder-2812 @ngtrthhg
+
+# Report: Thảo Hương tổng biên tập (các mục riêng ghi đè ở dưới)
+/report/                        @ngtrthhg
+
+# TV1 — Hoàng Gia: MCTS
+uctlab/agents/mcts.py          @RoyalRuby2007
+/uctlab/agents/fast_mcts.py     @RoyalRuby2007
+/uctlab/value_fn.py             @RoyalRuby2007
+/report/sections/method_mcts.tex @RoyalRuby2007
+/report/sections/discussion.tex @RoyalRuby2007
+
+# TV2 — Tiến Thành: tìm kiếm đối kháng, arena, cờ tướng, demo
+/uctlab/agents/minimax.py       @Sun-Coder-2812
+/uctlab/arena.py                @Sun-Coder-2812
+/uctlab/games/xiangqi*          @Sun-Coder-2812
+/web/                           @Sun-Coder-2812
+/report/sections/problem.tex    @Sun-Coder-2812
+/report/sections/method_search.tex @Sun-Coder-2812
+
+# TV3 — Thảo Hương: luật m,n,k, lượng giá, rollout, Bài 2, plots, CI, report
+/uctlab/games/mnk*.py           @ngtrthhg
+/uctlab/rollouts.py             @ngtrthhg
+/uctlab/scheduling/             @ngtrthhg
+/experiments/plots.py           @ngtrthhg
+/.github/                       @ngtrthhg
+
+# Hợp đồng API và tài liệu chung: cả nhóm
+/uctlab/games/base.py           @RoyalRuby2007 @Sun-Coder-2812 @ngtrthhg
+/uctlab/agents/base.py          @RoyalRuby2007 @Sun-Coder-2812 @ngtrthhg
+/docs/                          @RoyalRuby2007 @Sun-Coder-2812 @ngtrthhg

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UCT Lab — kiểm tra trực quan</title>
+<style>
+  :root{
+    --bg:#F5F6F8; --panel:#FFFFFF; --ink:#16202B; --muted:#5C6773; --line:#D9DEE4;
+    --x:#1F4E8C; --o:#B4441F; --ok:#1E7A4F; --bad:#B3261E; --warn:#8A6A00;
+    --heat:31,78,140; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+  header{display:flex;align-items:center;gap:24px;padding:14px 24px;background:var(--panel);
+         border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:650;letter-spacing:-.01em}
+  nav{display:flex;gap:4px}
+  nav button{border:0;background:none;padding:8px 14px;border-radius:6px;font:inherit;color:var(--muted);cursor:pointer}
+  nav button[aria-selected=true]{background:var(--ink);color:#fff}
+  nav button:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--x);outline-offset:2px}
+  #mods{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;font-size:12.5px}
+  .chip{padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+  .chip.on{border-color:var(--ok);color:var(--ok)}
+  .chip.on::before{content:"✓ "} .chip.off::before{content:"– "}
+  main{padding:20px 24px;max-width:1320px;margin:0 auto}
+  section[hidden]{display:none}
+  .grid{display:grid;grid-template-columns:290px minmax(0,1fr) 360px;gap:20px;align-items:start}
+  @media (max-width:1100px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .panel h2{font-size:14px;margin:0 0 10px;font-weight:650}
+  label{display:block;font-size:13px;color:var(--muted);margin:8px 0 3px}
+  select,input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff;color:var(--ink)}
+  .row{display:flex;gap:8px} .row>*{flex:1}
+  .btn{display:inline-block;padding:8px 13px;border-radius:6px;border:1px solid var(--line);background:#fff;font:inherit;cursor:pointer;color:var(--ink)}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .side{border-left:3px solid var(--line);padding-left:10px;margin-top:12px}
+  .side.X{border-color:var(--x)} .side.O{border-color:var(--o)}
+  .side b{font-size:13px}
+  /* bàn cờ */
+  #boardWrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+  #status{font-size:16px;font-weight:600;min-height:24px;text-align:center}
+  #board{display:grid;background:var(--line);gap:1px;border:1px solid var(--line);user-select:none}
+  .cell{position:relative;background:#fff;display:flex;align-items:center;justify-content:center;
+        font-weight:700;cursor:pointer;transition:background-color .25s}
+  .cell.X{color:var(--x)} .cell.O{color:var(--o)}
+  .cell.disabled{cursor:default}
+  .cell.last{box-shadow:inset 0 0 0 2px var(--ink)}
+  .cell.best{box-shadow:inset 0 0 0 3px var(--x)}
+  .cell .n{position:absolute;right:3px;bottom:1px;font:500 10px var(--mono);color:var(--muted)}
+  .cell .coord{position:absolute;left:3px;top:1px;font:10px var(--mono);color:#A7B0BA}
+  #legend{font-size:12.5px;color:var(--muted);text-align:center;max-width:520px}
+  /* bảng */
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:12.5px}
+  td{font-family:var(--mono);font-size:12.5px}
+  tr.pick td{background:rgba(var(--heat),.08);font-weight:700}
+  .bar{height:6px;background:rgba(var(--heat),.75);border-radius:3px}
+  .meta{font-size:13px;color:var(--muted);margin:4px 0 10px}
+  .note{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .err{color:var(--bad);white-space:pre-wrap;font:12px var(--mono)}
+  #log{max-height:180px;overflow:auto;font:12px var(--mono);color:var(--muted)}
+  /* test */
+  .sum{padding:10px 14px;border-radius:8px;font-weight:600;margin-bottom:12px}
+  .sum.ok{background:#E7F4EC;color:var(--ok)} .sum.bad{background:#FBEAE8;color:var(--bad)}
+  .tfile{margin:12px 0 4px;font:600 13px var(--mono)}
+  .t{display:flex;gap:8px;align-items:baseline;font:12.5px var(--mono);padding:2px 0}
+  .pill{font:600 11px var(--mono);padding:1px 7px;border-radius:4px;color:#fff;min-width:58px;text-align:center}
+  .pill.PASSED{background:var(--ok)} .pill.FAILED,.pill.ERROR{background:var(--bad)} .pill.SKIPPED{background:var(--muted)}
+  .t .m{color:var(--bad)}
+  details pre{white-space:pre-wrap;font:11.5px var(--mono);background:#F0F2F5;padding:10px;border-radius:6px;max-height:420px;overflow:auto}
+  .two{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+  @media (max-width:900px){.two{grid-template-columns:1fr}}
+  .wdl{display:flex;height:30px;border-radius:6px;overflow:hidden;font:600 13px var(--mono);color:#fff;margin:10px 0}
+  .wdl div{display:flex;align-items:center;justify-content:center;min-width:0}
+  .wdl .w{background:var(--ok)} .wdl .d{background:#8A94A0} .wdl .l{background:var(--bad)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation:none}.cell{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>UCT Lab</h1>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="play">Chơi</button>
+    <button role="tab" aria-selected="false" data-tab="test">Kiểm tra</button>
+    <button role="tab" aria-selected="false" data-tab="match">Đấu thử</button>
+  </nav>
+  <div id="mods" aria-label="Module đã có trong repo"></div>
+</header>
+
+<main>
+<!-- ============================ CHƠI ============================ -->
+<section id="tab-play">
+  <div class="grid">
+    <div class="panel">
+      <h2>Ván cờ</h2>
+      <label for="size">Bàn cờ</label>
+      <select id="size">
+        <option value="3x3">3×3 — 3 quân thẳng hàng</option>
+        <option value="9x9">9×9 — 5 quân thẳng hàng</option>
+        <option value="15x15">15×15 — 5 quân thẳng hàng</option>
+      </select>
+      <div class="side X" id="sideX"></div>
+      <div class="side O" id="sideO"></div>
+      <div class="btns">
+        <button class="btn primary" id="newGame">Ván mới</button>
+        <button class="btn" id="undo">Đi lại</button>
+        <button class="btn" id="pause">Tạm dừng</button>
+        <button class="btn" id="example" title="OX. / .O. / X.. — X đi">Thế cờ đề bài</button>
+        <button class="btn" id="analyse" title="Chạy MCTS cho bên đang phải đi, hiện bảng và bản đồ nhiệt, không đi nước">Phân tích thế cờ</button>
+      </div>
+      <p class="note">Khi cả hai bên là máy, ván tự chạy; bấm <b>Tạm dừng</b> để xem kỹ từng nước.</p>
+    </div>
+
+    <div id="boardWrap">
+      <div id="status" aria-live="polite"></div>
+      <div id="board" role="grid"></div>
+      <div id="legend">Ô có nền xanh: MCTS đã thăm nhiều lần (số nhỏ ở góc là N). Viền đậm: nước MCTS chọn — luôn là ô có N lớn nhất.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Bảng thống kê ở nút gốc</h2>
+      <div class="meta" id="statMeta">Chưa có nước nào của máy.</div>
+      <div id="statTable"></div>
+      <p class="note">W/N là tỉ lệ thắng ước lượng; UCT = W/N + c·√(ln N<sub>gốc</sub> / N). Khi tìm kiếm xong, MCTS chọn nước có <b>N lớn nhất</b>, không phải W/N lớn nhất.</p>
+      <h2 style="margin-top:14px">Lịch sử nước đi</h2>
+      <div id="log"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ KIỂM TRA ============================ -->
+<section id="tab-test" hidden>
+  <div class="two">
+    <div class="panel">
+      <h2>Chạy bộ test (pytest)</h2>
+      <label for="target">Chạy gì</label>
+      <select id="target">
+        <option value="tests">Toàn bộ thư mục tests</option>
+      </select>
+      <div class="btns"><button class="btn primary" id="runTests">Chạy test</button></div>
+      <p class="note">Giống hệt lệnh <code>uv run pytest -q tests</code> trong terminal, nhưng kết quả hiện từng test. Test đỏ có kèm lý do.</p>
+    </div>
+    <div class="panel" id="testOut"><span class="meta">Chưa chạy.</span></div>
+  </div>
+</section>
+
+<!-- ============================ ĐẤU THỬ ============================ -->
+<section id="tab-match" hidden>
+  <div class="two">
+    <div class="panel">
+      <h2>Cho hai agent đấu nhau</h2>
+      <label for="msize">Bàn cờ</label>
+      <select id="msize">
+        <option value="3x3">3×3</option><option value="9x9">9×9</option><option value="15x15">15×15</option>
+      </select>
+      <div class="side X" id="sideA"></div>
+      <div class="side O" id="sideB"></div>
+      <label for="ngames">Số ván (đổi lượt đi trước mỗi ván)</label>
+      <input id="ngames" type="number" min="2" max="400" value="20">
+      <div class="btns"><button class="btn primary" id="runMatch">Bắt đầu</button></div>
+      <p class="note">Ví dụ kiểm tra nhanh: MCTS 2000 lần lặp vs Random trên 3×3 phải <b>không thua ván nào</b>; MCTS vs Minimax phải <b>hoà hết</b>.</p>
+    </div>
+    <div class="panel">
+      <h2>Kết quả (theo góc nhìn A)</h2>
+      <div id="matchOut" class="meta">Chưa chạy.</div>
+      <table id="matchHist"><thead><tr><th>Lần</th><th>Bàn</th><th>A</th><th>B</th><th>Thắng</th><th>Hoà</th><th>Thua</th><th>Giây</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = (path, body) => fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {}).then(r => r.json());
+const SYM = {1:"X", 2:"O"};
+const LABEL = {human:"Người", random:"Random", mcts:"MCTS (Python)", fast_mcts:"MCTS (Numba)", minimax:"Minimax", alphabeta:"Alpha-Beta"};
+let MODS = {};
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("main section").forEach(s => s.hidden = s.id !== "tab-" + b.dataset.tab);
+});
+
+/* ---------- chọn agent ---------- */
+function agentPicker(el, title, allowHuman, def) {
+  const types = (allowHuman ? ["human"] : []).concat(["random","mcts","fast_mcts","minimax","alphabeta"]);
+  const id = el.id;
+  el.innerHTML = `<b>${title}</b>
+    <label for="${id}-t">Ai chơi</label>
+    <select id="${id}-t">${types.map(t => `<option value="${t}" ${t!=="human" && !MODS[t] ? "disabled" : ""}>${LABEL[t]}${t!=="human" && !MODS[t] ? " — chưa có" : ""}</option>`).join("")}</select>
+    <div class="row" id="${id}-mc"><div><label for="${id}-it">Số lần lặp</label><input id="${id}-it" type="number" value="2000" min="10" step="100"></div>
+      <div><label for="${id}-c">Hằng số c</label><input id="${id}-c" type="number" value="1.4" step="0.1" min="0"></div></div>
+    <div id="${id}-mm"><label for="${id}-d">Độ sâu (trống = hết cây, chỉ dùng cho 3×3)</label><input id="${id}-d" type="number" min="1" placeholder="hết cây"></div>`;
+  const sel = $(`#${id}-t`);
+  if (def && (def === "human" || MODS[def])) sel.value = def;
+  const sync = () => { $(`#${id}-mc`).hidden = !["mcts","fast_mcts"].includes(sel.value);
+                       $(`#${id}-mm`).hidden = !["minimax","alphabeta"].includes(sel.value); };
+  sel.onchange = () => { sync(); el.dispatchEvent(new Event("change")); };
+  sync();
+  return () => ({type: sel.value, iterations: +$(`#${id}-it`).value, c: +$(`#${id}-c`).value, depth: $(`#${id}-d`).value || null});
+}
+
+/* ---------- chơi ---------- */
+let size = "3x3", history = [], state = null, busy = false, paused = false, lastStats = null;
+let getX, getO;
+
+async function refresh() {
+  state = await api("/api/state", {size, history});
+  if (state.error) { $("#status").innerHTML = `<span class="err">${state.error}</span>`; return; }
+  drawBoard(); drawStatus(); drawLog();
+  maybeAI();
+}
+
+function drawBoard() {
+  const n = state.size, cellPx = n === 3 ? 96 : n === 9 ? 52 : 36;
+  const b = $("#board");
+  b.style.gridTemplateColumns = `repeat(${n}, ${cellPx}px)`;
+  b.style.gridAutoRows = cellPx + "px";
+  b.style.fontSize = (cellPx * .55) + "px";
+  const heat = {}; let maxN = 1, best = null;
+  if (lastStats && lastStats.table && (lastStats.forLen === history.length - 1 || (lastStats.analysis && lastStats.forLen === history.length))) {
+    lastStats.table.forEach(r => { heat[r.move] = r.N; maxN = Math.max(maxN, r.N); });
+    best = lastStats.move;
+  }
+  const last = history[history.length - 1];
+  const legal = new Set(state.legal);
+  b.innerHTML = "";
+  state.board.forEach((v, i) => {
+    const c = document.createElement("div");
+    c.className = "cell" + (v ? " " + SYM[v] : "") + (i === last ? " last" : "") + (i === best ? " best" : "");
+    c.setAttribute("role", "gridcell");
+    c.setAttribute("aria-label", state.names[i] + (v ? " " + SYM[v] : " trống"));
+    if (v) c.textContent = SYM[v];
+    if (heat[i] !== undefined) {
+      c.style.backgroundColor = `rgba(var(--heat), ${.06 + .5 * heat[i] / maxN})`;
+      if (n <= 9) c.insertAdjacentHTML("beforeend", `<span class="n">${heat[i]}</span>`);
+    }
+    if (n === 3) c.insertAdjacentHTML("beforeend", `<span class="coord">${state.names[i]}</span>`);
+    const humanTurn = currentSpec().type === "human";
+    if (!legal.has(i) || !humanTurn || busy) c.classList.add("disabled");
+    else c.onclick = () => { history.push(i); refresh(); };
+    b.appendChild(c);
+  });
+}
+
+function drawStatus() {
+  const r = state.result;
+  let t;
+  if (r === null) t = `Lượt của <span style="color:var(--${state.player===1?"x":"o"})">${SYM[state.player]}</span> (${LABEL[currentSpec().type]})` + (busy ? ` &nbsp;<span class="spin"></span> đang nghĩ…` : "");
+  else if (r === 0) t = "Hoà";
+  else t = `<span style="color:var(--${r===1?"x":"o"})">${SYM[r]}</span> thắng`;
+  $("#status").innerHTML = t;
+}
+
+function drawLog() {
+  $("#log").innerHTML = history.map((m, i) => `${i+1}. ${SYM[i%2?2:1]} ${state.names[m]}`).join("<br>") || "—";
+  $("#log").scrollTop = 1e9;
+}
+
+function currentSpec() { return (state && state.player === 2 ? getO : getX)(); }
+
+async function maybeAI() {
+  if (!state || state.result !== null || busy || paused) return;
+  const spec = currentSpec();
+  if (spec.type === "human") return;
+  busy = true; drawStatus(); drawBoard();
+  const len = history.length;
+  const res = await api("/api/move", {size, history, agent: spec});
+  busy = false;
+  if (len !== history.length) return;          // người dùng đã bấm ván mới / đi lại
+  if (res.error) { $("#status").innerHTML = `<span class="err">${res.error}</span>`;
+                   if (res.trace) console.error(res.trace); return; }
+  lastStats = {...res, forLen: len};
+  showStats(res);
+  history.push(res.move);
+  setTimeout(refresh, spec.type === "human" ? 0 : 250);
+}
+
+function showStats(res) {
+  const name = m => state.names[m];
+  let meta = `${res.agent} chọn <b>${name(res.move)}</b> trong ${res.time}s`;
+  if (res.nodes) meta += ` · ${Number(res.nodes).toLocaleString("vi-VN")} nút`;
+  if (res.value !== undefined && res.value !== null) meta += ` · giá trị ${res.value}`;
+  $("#statMeta").innerHTML = meta;
+  if (!res.table) { $("#statTable").innerHTML = '<p class="note">Bảng N, W chỉ có với MCTS.</p>'; return; }
+  const maxN = Math.max(...res.table.map(r => r.N));
+  $("#statTable").innerHTML = `<table><thead><tr><th>Nước</th><th>N</th><th>W</th><th>W/N</th><th>UCT</th><th style="width:70px"></th></tr></thead><tbody>` +
+    res.table.slice(0, 15).map(r => `<tr class="${r.move===res.move?"pick":""}"><td>${name(r.move)}</td><td>${r.N}</td><td>${r.W}</td><td>${r.Q.toFixed(3)}</td><td>${r.UCT===null||!isFinite(r.UCT)?"∞":r.UCT.toFixed(3)}</td><td><div class="bar" style="width:${100*r.N/maxN}%"></div></td></tr>`).join("") +
+    `</tbody></table>` + (res.table.length > 15 ? `<p class="note">Hiện 15/${res.table.length} nước có N lớn nhất.</p>` : "");
+}
+
+function newGame(h = []) { history = h; lastStats = null; $("#statMeta").textContent = "Chưa có nước nào của máy."; $("#statTable").innerHTML = ""; refresh(); }
+
+$("#size").onchange = e => { size = e.target.value; $("#example").disabled = size !== "3x3"; newGame(); };
+$("#newGame").onclick = () => newGame();
+$("#example").onclick = () => newGame([1, 0, 6, 4]);   // X b3, O a3, X a1, O b2 -> X đi
+$("#analyse").onclick = async () => {
+  if (busy || !state || state.result !== null) return;
+  const cur = currentSpec();
+  const spec = ["mcts","fast_mcts"].includes(cur.type) ? cur : {type: MODS.fast_mcts ? "fast_mcts" : "mcts", iterations: 2000, c: 1.4};
+  busy = true; drawStatus();
+  const res = await api("/api/move", {size, history, agent: spec});
+  busy = false;
+  if (res.error) { $("#status").innerHTML = `<span class="err">${res.error}</span>`; return; }
+  lastStats = {...res, forLen: history.length, analysis: true};
+  showStats(res);
+  $("#statMeta").insertAdjacentHTML("afterbegin", "<b>Phân tích</b> (chưa đi nước): ");
+  drawBoard(); drawStatus();
+};
+$("#pause").onclick = () => { paused = !paused; $("#pause").textContent = paused ? "Tiếp tục" : "Tạm dừng"; if (!paused) maybeAI(); };
+$("#undo").onclick = () => {
+  if (busy || !history.length) return;
+  history.pop();
+  // lùi tới khi tới lượt một người chơi thật (nếu có)
+  const humanSide = [getX().type === "human" ? 1 : 0, getO().type === "human" ? 2 : 0].filter(Boolean);
+  if (humanSide.length === 1 && history.length) {
+    const toMove = history.length % 2 === 0 ? 1 : 2;
+    if (toMove !== humanSide[0]) history.pop();
+  }
+  lastStats = null; refresh();
+};
+
+/* ---------- kiểm tra ---------- */
+$("#runTests").onclick = async () => {
+  const btn = $("#runTests"); btn.disabled = true;
+  $("#testOut").innerHTML = '<span class="spin"></span> Đang chạy pytest… (lần đầu có Numba có thể mất 30–60 giây)';
+  const r = await api("/api/pytest", {target: $("#target").value});
+  btn.disabled = false;
+  if (r.error) { $("#testOut").innerHTML = `<p class="err">${r.error}</p>`; return; }
+  const bad = r.tests.filter(t => t.status === "FAILED" || t.status === "ERROR").length;
+  const groups = {};
+  r.tests.forEach(t => { const [f, ...rest] = t.name.split("::"); (groups[f] = groups[f] || []).push({...t, short: rest.join("::")}); });
+  $("#testOut").innerHTML = `<div class="sum ${bad || !r.tests.length ? "bad" : "ok"}">${r.summary || "Không đọc được kết quả"} · ${r.time}s</div>` +
+    Object.entries(groups).map(([f, ts]) => `<div class="tfile">${f}</div>` + ts.map(t =>
+      `<div class="t"><span class="pill ${t.status}">${t.status === "PASSED" ? "QUA" : t.status === "FAILED" ? "TRƯỢT" : t.status}</span><span>${t.short}</span>${t.msg ? `<span class="m">— ${t.msg.replace(/</g,"&lt;")}</span>` : ""}</div>`).join("")).join("") +
+    `<details><summary class="note">Xem toàn bộ output</summary><pre>${r.output.replace(/</g,"&lt;")}</pre></details>`;
+};
+
+/* ---------- đấu thử ---------- */
+let getA, getB, runNo = 0;
+$("#runMatch").onclick = async () => {
+  const a = getA(), b = getB(), n = +$("#ngames").value, ms = $("#msize").value;
+  const btn = $("#runMatch"); btn.disabled = true;
+  $("#matchOut").innerHTML = `<span class="spin"></span> Đang đấu ${n} ván…`;
+  const r = await api("/api/match", {size: ms, a, b, n});
+  btn.disabled = false;
+  if (r.error) { $("#matchOut").innerHTML = `<p class="err">${r.error}</p>`; return; }
+  const pct = x => (100 * x / r.n_games);
+  const desc = s => LABEL[s.type] + (["mcts","fast_mcts"].includes(s.type) ? ` (${s.iterations}, c=${s.c})` : ["minimax","alphabeta"].includes(s.type) && s.depth ? ` (d=${s.depth})` : "");
+  $("#matchOut").innerHTML = `<div class="wdl">
+      <div class="w" style="width:${pct(r.a_wins)}%">${r.a_wins || ""}</div>
+      <div class="d" style="width:${pct(r.draws)}%">${r.draws || ""}</div>
+      <div class="l" style="width:${pct(r.a_losses)}%">${r.a_losses || ""}</div></div>
+    A thắng ${r.a_wins} · hoà ${r.draws} · thua ${r.a_losses} trên ${r.n_games} ván · ${r.time}s · chạy bằng ${r.via}`;
+  $("#matchHist tbody").insertAdjacentHTML("afterbegin",
+    `<tr><td>${++runNo}</td><td>${ms}</td><td>${desc(a)}</td><td>${desc(b)}</td><td>${r.a_wins}</td><td>${r.draws}</td><td>${r.a_losses}</td><td>${r.time}</td></tr>`);
+};
+
+/* ---------- khởi động ---------- */
+(async () => {
+  MODS = await api("/api/modules");
+  const nice = {random:"Random", mcts:"MCTS", fast_mcts:"MCTS Numba", minimax:"Minimax", alphabeta:"Alpha-Beta", arena:"Arena"};
+  $("#mods").innerHTML = Object.entries(nice).map(([k, v]) => `<span class="chip ${MODS[k] ? "on" : "off"}" title="${MODS[k] ? "đã có" : "chưa merge"}">${v}</span>`).join("");
+  getX = agentPicker($("#sideX"), "X — đi trước", true, "human");
+  getO = agentPicker($("#sideO"), "O — đi sau", true, "mcts");
+  getA = agentPicker($("#sideA"), "A", false, "mcts");
+  getB = agentPicker($("#sideB"), "B", false, "random");
+  $("#sideX").addEventListener("change", () => { drawBoard(); maybeAI(); });
+  $("#sideO").addEventListener("change", () => { drawBoard(); maybeAI(); });
+  const files = ["test_smoke.py","test_mcts.py","test_mnk.py","test_eval.py","test_minimax.py","test_arena.py"];
+  $("#target").insertAdjacentHTML("beforeend", files.map(f => `<option value="tests/${f}">${f}</option>`).join(""));
+  refresh();
+})();
+</script>
+</body>
+</html>
